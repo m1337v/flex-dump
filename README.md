@@ -5,7 +5,8 @@ Flex-Dump is a Python tool designed to convert class-dumped headers from iOS fra
 How to Use the Script
 
 Step 1: Dump Headers Using class-dumpc
-	1.	Download class-dumpc from this release.
+	1.	Download class-dumpc from this release https://github.com/lechium/classdumpios/releases/tag/4.2.0-RELEASE1
+ 
 	2.	Open a terminal and run the following command:
 
 ./class-dumpc -H <drag in the framework binary> -o <output directory>
