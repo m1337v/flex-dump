@@ -234,67 +234,95 @@ def process_header_file(file_path):
         return [], None, None
 
 def parse_method_declaration(line, class_name):
-    # Extract method components with improved regex to handle all parameters
-    match = re.match(r'^([+-])\s*\(([\w\s*<>]+)\)\s*((?:[^\s:]+\s*(?:\([^)]+\))?\s*:?\s*(?:\([^)]+\))?\s*)*)', line)
+    # Use Flex-Dump's improved pattern
+    pattern = r'([+-])\s*\(([\w\s*<>{}\[\]]+(?:\s*\*)?)\)\s*([^;]+)'
+    match = re.match(pattern, line.strip())
     if not match:
         return None
-        
-    prefix, return_type, selector_with_types = match.groups()
     
-    # Clean up return type and handle _Bool
+    prefix, return_type, selector = match.groups()
     return_type = return_type.strip()
-    if return_type == '_Bool':
-        return_type = 'bool'
     
-    # Parse selector and parameters - improved to catch all arguments
-    parts = []
-    current_pos = 0
-    method_parts = selector_with_types.split(':')
+    # Special handling for .cxx_destruct
+    if ".cxx_destruct" in selector:
+        return {
+            'prefix': prefix,
+            'selector': ".cxx_destruct",
+            'typeEncoding': "v16@0:8",
+            'displayName': f"{prefix}(void) .cxx_destruct",
+            'className': class_name
+        }
     
-    if ':' not in selector_with_types:
-        # Handle methods without parameters
-        selector = selector_with_types.strip()
-        display_name = f"{prefix}({return_type}) {selector}"
+    # Clean up return type for display
+    display_type = return_type
+    if return_type.lower() in ["_bool", "bool", "bool_", "bool"]:
+        display_type = "bool"
+    elif 'Protocol' in return_type:
+        display_type = 'Protocol *'
+    
+    selector = selector.strip()
+    
+    # Use Flex-Dump's parameter parsing
+    if ':' not in selector:
+        clean_selector = selector
+        display_name = f"{prefix}({display_type}) {selector}"
     else:
-        # Parse each parameter section
-        method_name = method_parts[0].strip()
-        param_sections = re.finditer(r'(\w+)?\s*:\s*\(([^)]+)\)', selector_with_types)
+        parts = re.split(r'\([^)]+\)\s*\w+', selector)
+        types = re.findall(r'\(([^)]+)\)', selector)
         
-        selector_parts = []
+        method_parts = [p.strip().rstrip(':') for p in parts if p.strip()]
+        clean_selector = ':'.join(method_parts) + ':'
+        
         display_parts = []
+        param_types = []  # Track parameter types for type encoding
         
-        for match in param_sections:
-            param_name = match.group(1) or ''
-            param_type = match.group(2).strip()
+        for i, part in enumerate(method_parts):
+            param_type = types[i] if i < len(types) else 'id'
+            param_type = param_type.strip()
             
-            # Clean parameter type
-            if param_type == '_Bool':
-                param_type = 'bool'
-            elif param_type.lower() in ['id', 'id)', 'instancetype']:
-                param_type = 'id'
-                
-            if param_name:
-                selector_parts.append(f"{param_name}:")
-                display_parts.append(f"{param_name}:({param_type})")
+            # Clean up parameter types
+            if param_type.lower() in ["_bool", "bool", "bool_", "bool"]:
+                param_type = "bool"
+                param_types.append(('B', 16 + (i * 8)))
+            elif param_type.lower() in ['int', 'nsinteger']:
+                param_types.append(('i', 16 + (i * 8)))
+            elif param_type.lower() in ['long', 'long long', 'nsuinteger']:
+                param_types.append(('q', 16 + (i * 8)))
+            elif param_type.lower() in ['float', 'cgfloat']:
+                param_types.append(('f', 16 + (i * 8)))
+            elif param_type.lower() == 'double':
+                param_types.append(('d', 16 + (i * 8)))
             else:
-                selector_parts.append(":")
-                display_parts.append(f":({param_type})")
+                param_types.append(('@', 16 + (i * 8)))
             
-            parts.append((param_name, param_type))
+            display_parts.append(f"{part}:({param_type})")
         
-        if method_name:
-            selector = method_name + ':' + ''.join(selector_parts)
-            display_name = f"{prefix}({return_type}) {method_name}:" + ' '.join(display_parts)
-        else:
-            selector = ''.join(selector_parts)
-            display_name = f"{prefix}({return_type}) " + ' '.join(display_parts)
-
-    # Calculate type encoding
-    type_encoding = calculate_type_encoding(return_type, selector, parts)
+        display_name = f"{prefix}({display_type}) {' '.join(display_parts)}"
+        
+        # Build type encoding with proper offsets
+        return_code = 'v' if return_type == 'void' else \
+                     'B' if display_type == 'bool' else \
+                     'i' if return_type == 'int' else \
+                     'q' if return_type == 'long' else \
+                     'f' if return_type == 'float' else \
+                     'd' if return_type == 'double' else '@'
+        
+        total_size = 16 + (len(param_types) * 8)
+        type_encoding = f"{return_code}{total_size}@0:8" + ''.join(f"{code}{offset}" for code, offset in param_types)
+        
+        return {
+            'prefix': prefix,
+            'selector': clean_selector,
+            'typeEncoding': type_encoding,
+            'displayName': display_name,
+            'className': class_name
+        }
     
+    # For no-parameter methods
+    type_encoding = calculate_type_encoding(return_type, clean_selector)
     return {
         'prefix': prefix,
-        'selector': selector,
+        'selector': clean_selector,
         'typeEncoding': type_encoding,
         'displayName': display_name,
         'className': class_name
