@@ -1,5 +1,3 @@
-Here’s the updated tutorial that incorporates your instructions on how to use the script with class-dumpc and Flex 3:
-
 Flex-Dump: A Header Conversion Tool for Flex 3
 
 Flex-Dump is a Python tool designed to convert class-dumped headers from iOS frameworks into a format suitable for Flex 3 patches. By automating the conversion process, it simplifies the creation and modification of Flex 3 patches for developers and enthusiasts.
@@ -58,5 +56,3 @@ We welcome contributions to fix bugs, improve conversion accuracy, and expand fu
 	3.	Testing: Test the tool on different frameworks and share your feedback.
 
 Thank you for your support in making Flex-Dump better for everyone!
-
-This should cover everything. Let me know if there’s anything else you’d like to tweak!
