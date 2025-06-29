@@ -521,7 +521,7 @@ def create_extracted_xml(framework_name, headers_dir):
 
 def main():
     framework_name = input("Enter framework name (without extension): ")
-    headers_dir = input("Enter path to headers directory: ")
+    headers_dir = input("Enter path to headers directory: ").strip()
     headers_dir = os.path.abspath(headers_dir)
     
     if not os.path.isdir(headers_dir):
