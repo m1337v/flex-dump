@@ -520,7 +520,7 @@ def create_extracted_xml(framework_name, headers_dir):
     print(f"Successfully created {output_file}")
 
 def main():
-    framework_name = input("Enter framework name (without extension): ")
+    framework_name = input("Enter framework name (without extension) or bundle identifier (for app binaries): ")
     headers_dir = input("Enter path to headers directory: ").strip()
     headers_dir = os.path.abspath(headers_dir)
     
